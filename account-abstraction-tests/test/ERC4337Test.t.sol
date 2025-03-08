@@ -14,6 +14,7 @@ contract ERC4337Test is Test {
 
     function setUp() public {
         entryPoint = new EntryPoint();
+        vm.deal(address(entryPoint), 10 ether);
     }
 
     function testHandleOps_Invalid() public {
@@ -34,17 +35,30 @@ contract ERC4337Test is Test {
         assertEq(balance, depositAmount, "Incorrect deposited balance");
     }
 
-    function test_withdrawTo_ValidAmount() public {
+    function testWithdrawTo_ValidAmount() public {
         uint256 depositAmount = 1 ether;
         entryPoint.depositTo{value: depositAmount}(mockedUser);
         uint256 initialBalance = entryPoint.balanceOf(mockedUser);
 
         vm.prank(mockedUser);
-        entryPoint.withdrawTo(payable(mockedUser), depositAmount);
+        entryPoint.withdrawTo(payable(beneficiary), depositAmount);
         uint256 finalBalance = entryPoint.balanceOf(mockedUser);
         
         assertEq(initialBalance, depositAmount, "Deposit not registered");
         assertEq(finalBalance, 0, "Withdraw did not reduce balance correctly");
+    }
+
+    function testWithdraw_InsufficientAmount() public {
+        vm.prank(mockedUser);
+        entryPoint.depositTo{value: 1 ether}(mockedUser);
+        
+        uint256 depositAmount = entryPoint.balanceOf(mockedUser);
+        
+        assertEq(depositAmount, 1 ether, "Deposit not registered as expected");
+        
+        vm.prank(mockedUser);
+        vm.expectRevert();
+        entryPoint.withdrawTo(payable(beneficiary), 2 ether);
     }
 
     function createmockedUserOp() internal pure returns (PackedUserOperation memory op) {
@@ -84,6 +98,4 @@ contract ERC4337Test is Test {
     function unpackHigh128(bytes32 packed) internal pure returns (uint256) {
         return uint256(packed) >> 128;
     }
-
-    receive() external payable {}
 }
