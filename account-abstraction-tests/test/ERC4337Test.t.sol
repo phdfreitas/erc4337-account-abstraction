@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.28;
 
 import {Test, console} from "forge-std/Test.sol";
 import {IEntryPoint} from "../lib/openzeppelin-contracts/contracts/interfaces/draft-IERC4337.sol";
@@ -49,15 +49,15 @@ contract ERC4337Test is Test {
     }
 
     function testWithdraw_InsufficientAmount() public {
-        vm.prank(mockedUser);
-        entryPoint.depositTo{value: 1 ether}(mockedUser);
+        uint256 depositTestWithdraw = 1 ether;
+        entryPoint.depositTo{value: depositTestWithdraw}(mockedUser);
         
         uint256 depositAmount = entryPoint.balanceOf(mockedUser);
         
         assertEq(depositAmount, 1 ether, "Deposit not registered as expected");
         
         vm.prank(mockedUser);
-        vm.expectRevert();
+        vm.expectRevert(bytes("Withdraw amount too large"));
         entryPoint.withdrawTo(payable(beneficiary), 2 ether);
     }
 
