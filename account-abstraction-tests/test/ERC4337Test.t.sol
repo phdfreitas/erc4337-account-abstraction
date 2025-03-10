@@ -324,8 +324,65 @@ contract ERC4337Test is Test {
         vm.expectRevert();
         entryPoint.handleOps(ops, payable(beneficiary));
     }
+    
+    function testHandleOps_CopyUserOpToMemory_ValidData() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
 
+        // Criando um paymasterAndData válido
+        op.paymasterAndData = new bytes(UserOperationLib.PAYMASTER_DATA_OFFSET);
+        for (uint256 i = 0; i < op.paymasterAndData.length; i++) {
+            op.paymasterAndData[i] = bytes1(uint8(i + 1));
+        }
 
+        ops[0] = op;
+
+        vm.expectRevert(); 
+        entryPoint.handleOps(ops, payable(beneficiary));
+    }
+
+    function testHandleOps_CopyUserOpToMemory_InvalidPaymasterData() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
+
+        // Criando um paymasterAndData inválido (menor do que o esperado)
+        op.paymasterAndData = new bytes(UserOperationLib.PAYMASTER_DATA_OFFSET - 1);
+
+        ops[0] = op;
+
+        vm.expectRevert(bytes("AA93 invalid paymasterAndData"));
+        entryPoint.handleOps(ops, payable(beneficiary));
+    }
+
+    function testValidateAccountAndPaymaster_ExpiredOrNotDue() public {
+        uint256 validationData = packValidationData(address(0x123), block.timestamp + 1000, block.timestamp + 2000);
+        uint256 paymasterValidationData = packValidationData(address(0), block.timestamp - 10, block.timestamp + 100);
+
+        vm.expectRevert(bytes("AA22 expired or not due"));
+        entryPoint.validateAccountAndPaymasterValidationData(0, validationData, paymasterValidationData, address(0x123));
+    }
+
+    function testHandleOps_ExpiredOrNotDue() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
+
+        uint256 expiredValidationData = packValidationData(
+            address(0),         // Sem agregador
+            uint48(block.timestamp + 100), // validAfter no futuro (não devido)
+            uint48(block.timestamp - 100)  // validUntil no passado (expirado)
+        );
+
+        vm.mockCall(
+            mockedUser,
+            abi.encodeWithSignature("validateUserOp(bytes32,uint256)", "", 0),
+            abi.encode(expiredValidationData) // Retorna um validationData com erro de tempo
+        );
+
+        ops[0] = op;
+
+        vm.expectRevert(bytes("AA22 expired or not due"));
+        entryPoint.handleOps(ops, payable(beneficiary));
+    }
 
     function createmockedUserOp() internal pure returns (PackedUserOperation memory op) {
         op.sender = mockedUser;
