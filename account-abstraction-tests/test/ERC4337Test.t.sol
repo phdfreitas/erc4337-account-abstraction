@@ -24,6 +24,31 @@ contract ERC4337Test is Test {
         assertEq(balance, depositAmount, "Incorrect deposited balance");
     }
 
+    function testDepositZeroEther_ShouldNotChangeBalance() public {
+        uint256 initialBalance = entryPoint.balanceOf(mockedUser);
+        entryPoint.depositTo{value: 0}(mockedUser);
+        uint256 finalBalance = entryPoint.balanceOf(mockedUser);
+        
+        assertEq(initialBalance, finalBalance, "Balance should not change for 0 ether deposit");
+    }
+
+    function testDepositMaxEther() public {
+        uint256 maxDeposit = type(uint256).max;
+        
+        // Verifica se o contrato falha ao tentar depositar o valor máximo
+        vm.expectRevert();
+        entryPoint.depositTo{value: maxDeposit}(mockedUser);
+    }
+
+    function testDeposit_Overflow() public {
+        address user = address(0x999);
+        uint256 depositAmount = type(uint256).max;
+
+        // Tenta depositar o valor máximo
+        vm.expectRevert(); // Espera que o contrato reverta
+        entryPoint.depositTo{value: depositAmount}(user);
+    }
+
     function testWithdrawTo_ValidAmount() public {
         uint256 depositAmount = 1 ether;
         entryPoint.depositTo{value: depositAmount}(mockedUser);
@@ -37,7 +62,7 @@ contract ERC4337Test is Test {
         assertEq(finalBalance, 0, "Withdraw did not reduce balance correctly");
     }
 
-    function testWithdraw_InsufficientAmount() public {
+    function testWithdraw_MoreThanBalance_ShouldFail() public {
         uint256 depositTestWithdraw = 1 ether;
         entryPoint.depositTo{value: depositTestWithdraw}(mockedUser);
         
@@ -49,6 +74,57 @@ contract ERC4337Test is Test {
         vm.expectRevert(bytes("Withdraw amount too large"));
         entryPoint.withdrawTo(payable(beneficiary), 2 ether);
     }
+
+    function testWithdraw_ZeroEther() public {
+        entryPoint.depositTo{value: 1 ether}(mockedUser); // Deposita 1 ether para garantir saldo
+        uint256 initialBalance = entryPoint.balanceOf(mockedUser);
+        
+        vm.prank(mockedUser);
+        entryPoint.withdrawTo(payable(beneficiary), 0); // Saque de 0 ether
+        
+        uint256 finalBalance = entryPoint.balanceOf(mockedUser);
+        assertEq(initialBalance, finalBalance, "Balance should not change for 0 ether withdrawal");
+    }
+
+    function testWithdraw_ExactBalance() public {
+        uint256 depositAmount = 2 ether;
+        entryPoint.depositTo{value: depositAmount}(mockedUser); // Deposita 2 ether
+        
+        uint256 initialBeneficiaryBalance = beneficiary.balance;
+        
+        vm.prank(mockedUser);
+        entryPoint.withdrawTo(payable(beneficiary), depositAmount); // Saca o valor total
+        
+        uint256 finalBalance = entryPoint.balanceOf(mockedUser);
+        uint256 finalBeneficiaryBalance = beneficiary.balance;
+        
+        assertEq(finalBalance, 0, "Balance should be zero after full withdrawal");
+        assertEq(finalBeneficiaryBalance, initialBeneficiaryBalance + depositAmount, "Beneficiary should receive the exact amount");
+    }
+
+    function testWithdrawMaxEther_ShouldFail() public {
+        uint256 depositAmount = 1 ether;
+        entryPoint.depositTo{value: depositAmount}(mockedUser); // Deposita 1 ether
+        
+        vm.prank(mockedUser);
+        vm.expectRevert(bytes("Withdraw amount too large")); // Mensagem de erro esperada
+        entryPoint.withdrawTo(payable(beneficiary), type(uint256).max); // Tenta sacar o valor máximo
+    }
+
+    //function testWithdraw_UnknownUser() public { (não precisa pq só da pra sacar da própria conta)
+
+    // não reverteu para endereço zero, não sei se esse teste é relevante
+    //function testWithdraw_InvalidAddress() public {
+    //    address invalidAddress = address(0); // Endereço zero
+    //    uint256 depositAmount = 1 ether;
+    //
+    //    // Deposita para o mockedUser
+    //    entryPoint.depositTo{value: depositAmount}(mockedUser);
+        // Tenta sacar para um endereço inválido
+    //    vm.prank(mockedUser);
+    //    vm.expectRevert(bytes("Invalid address")); // Mensagem de erro esperada
+    //    entryPoint.withdrawTo(payable(invalidAddress), depositAmount);
+    //}
 
     // function testHandleOps_Success() public {
     //     PackedUserOperation[] memory ops = new PackedUserOperation[](1);
@@ -159,6 +235,46 @@ contract ERC4337Test is Test {
         vm.expectRevert();
         entryPoint.handleOps(ops, payable(beneficiary));
         vm.stopPrank();
+    }
+
+    // talvez esteja repetindo testHandleOps_InsufficientPrefund
+    function testHandleOps_InsufficientGas() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
+        ops[0] = op;
+
+        // Define limites de gás insuficientes
+        op.accountGasLimits = packGasLimits(1000, 1000); // Limites muito baixos
+
+        // Verifica se o contrato falha
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(beneficiary));
+    }
+
+    function testHandleOps_InvalidSignature() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
+        ops[0] = op;
+
+        // Define uma assinatura inválida
+        op.signature = abi.encodePacked(bytes32("invalid_signature"));
+
+        // Verifica se o contrato falha
+        vm.expectRevert(); // Mensagem de erro esperada
+        entryPoint.handleOps(ops, payable(beneficiary));
+    }
+
+    function testHandleOps_InvalidCallData() public {
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        PackedUserOperation memory op = createmockedUserOp();
+        ops[0] = op;
+
+        // Define um callData inválido
+        op.callData = abi.encodeWithSignature("nonExistentFunction()");
+
+        // Verifica se o contrato falha
+        vm.expectRevert();
+        entryPoint.handleOps(ops, payable(beneficiary));
     }
 
     // AA13 initCode failed or OOG
