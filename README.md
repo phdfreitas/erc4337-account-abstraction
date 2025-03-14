@@ -18,8 +18,18 @@ Our focus was to test the functions that perform actions, especially those that 
 - [ ] executeUserOp
 
 ## Black-box testing
-Until the present date, we have not focused much on this type of testing. In fact, we have conducted only a few types of tests (for specific functions, which will be mentioned later in this document). In this scenario, we have tested the following functions: depositTo and withdrawTo, as they are simple functions.
+Until the present date, we have focused only in a few scenarios of this type of testing. In fact, we have conducted only a few types of tests (for specific functions, which will be mentioned later in this document). Below are some of the key tests we implemented:
 
+### **depositTo**
+- **Test Case 1**: Deposit a valid amount of Ether to an account.
+- **Test Case 2**: Deposit zero Ether (should not change the balance).
+- **Test Case 3**: Attempt to deposit the maximum possible amount of Ether (should revert due to overflow).
+
+### **withdrawTo**
+- **Test Case 1**: Withdraw a valid amount of Ether from an account.
+- **Test Case 2**: Attempt to withdraw more Ether than the account balance (should revert).
+- **Test Case 3**: Withdraw zero Ether (should not change the balance).
+- **Test Case 4**: Withdraw the exact balance of the account (should reduce the balance to zero).
 
 ## White-box testing
 As for the white-box tests, we again analyzed each function individually and, in this case, any other functions (internal or external) called within the implementation of each one. In this scenario, we analyzed the implementation of **eth-infinitism**. We will describe below what we did and our results.
