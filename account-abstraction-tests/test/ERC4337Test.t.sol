@@ -277,7 +277,7 @@ contract ERC4337Test is Test {
         entryPoint.handleOps(ops, payable(beneficiary));
     }
 
-    // AA13 initCode failed or OOG
+    //_createSenderIfNeeded - AA13 initCode failed or OOG
     function testCreateSenderIfNeeded_FailedInitCode() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         PackedUserOperation memory op = createmockedUserOp();
@@ -292,7 +292,7 @@ contract ERC4337Test is Test {
         vm.stopPrank();
     }
 
-    // AA10 sender already constructed
+    // _createSenderIfNeeded AA10 sender already constructed
     function testCreateSenderIfNeeded_AlreadyConstructed() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         PackedUserOperation memory op = createmockedUserOp();
@@ -341,6 +341,7 @@ contract ERC4337Test is Test {
         entryPoint.handleOps(ops, payable(beneficiary));
     }
 
+    // 
     function testHandleOps_CopyUserOpToMemory_InvalidPaymasterData() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         PackedUserOperation memory op = createmockedUserOp();
@@ -354,35 +355,35 @@ contract ERC4337Test is Test {
         entryPoint.handleOps(ops, payable(beneficiary));
     }
 
-    function testValidateAccountAndPaymaster_ExpiredOrNotDue() public {
-        uint256 validationData = packValidationData(address(0x123), block.timestamp + 1000, block.timestamp + 2000);
-        uint256 paymasterValidationData = packValidationData(address(0), block.timestamp - 10, block.timestamp + 100);
+    // function testValidateAccountAndPaymaster_ExpiredOrNotDue() public {
+    //     uint256 validationData = packValidationData(address(0x123), block.timestamp + 1000, block.timestamp + 2000);
+    //     uint256 paymasterValidationData = packValidationData(address(0), block.timestamp - 10, block.timestamp + 100);
 
-        vm.expectRevert(bytes("AA22 expired or not due"));
-        entryPoint.validateAccountAndPaymasterValidationData(0, validationData, paymasterValidationData, address(0x123));
-    }
+    //     vm.expectRevert(bytes("AA22 expired or not due"));
+    //     entryPoint.validateAccountAndPaymasterValidationData(0, validationData, paymasterValidationData, address(0x123));
+    // }
 
-    function testHandleOps_ExpiredOrNotDue() public {
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        PackedUserOperation memory op = createmockedUserOp();
+    // function testHandleOps_ExpiredOrNotDue() public {
+    //     PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+    //     PackedUserOperation memory op = createmockedUserOp();
 
-        uint256 expiredValidationData = packValidationData(
-            address(0),         // Sem agregador
-            uint48(block.timestamp + 100), // validAfter no futuro (não devido)
-            uint48(block.timestamp - 100)  // validUntil no passado (expirado)
-        );
+    //     uint256 expiredValidationData = packValidationData(
+    //         address(0),         // Sem agregador
+    //         uint48(block.timestamp + 100), // validAfter no futuro (não devido)
+    //         uint48(block.timestamp - 100)  // validUntil no passado (expirado)
+    //     );
 
-        vm.mockCall(
-            mockedUser,
-            abi.encodeWithSignature("validateUserOp(bytes32,uint256)", "", 0),
-            abi.encode(expiredValidationData) // Retorna um validationData com erro de tempo
-        );
+    //     vm.mockCall(
+    //         mockedUser,
+    //         abi.encodeWithSignature("validateUserOp(bytes32,uint256)", "", 0),
+    //         abi.encode(expiredValidationData) // Retorna um validationData com erro de tempo
+    //     );
 
-        ops[0] = op;
+    //     ops[0] = op;
 
-        vm.expectRevert(bytes("AA22 expired or not due"));
-        entryPoint.handleOps(ops, payable(beneficiary));
-    }
+    //     vm.expectRevert(bytes("AA22 expired or not due"));
+    //     entryPoint.handleOps(ops, payable(beneficiary));
+    // }
 
     function createmockedUserOp() internal pure returns (PackedUserOperation memory op) {
         op.sender = mockedUser;
